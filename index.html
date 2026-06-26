@@ -1,38 +1,120 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <meta charset="utf-8">
-    <title>Story Creator</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        body { background: #0f0f0f; color: white; text-align: center; padding: 20px; font-family: sans-serif; }
-        img { max-width: 100%; border-radius: 12px; margin: 20px 0; }
-        button { padding: 15px 40px; font-size: 18px; background: #0088cc; color: white; border: none; border-radius: 12px; margin-top: 20px; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Story Creator</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--tg-theme-bg-color, #1a1a2e);
+      color: var(--tg-theme-text-color, #fff);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: var(--tg-theme-secondary-bg-color, #16213e);
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+    h2 { font-size: 20px; margin-bottom: 16px; }
+    .preview-img {
+      width: 100%;
+      max-height: 300px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-bottom: 16px;
+    }
+    .no-photo {
+      width: 100%;
+      height: 160px;
+      background: #2a2a4a;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 16px;
+    }
+    .users {
+      background: #0f3460;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 20px;
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+    .users strong { display: block; margin-bottom: 6px; color: #aaa; font-size: 12px; }
+    .btn {
+      background: #e94560;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 28px;
+      font-size: 16px;
+      font-weight: 600;
+      width: 100%;
+      cursor: pointer;
+    }
+    .error { color: #ff6b6b; font-size: 13px; margin-top: 12px; }
+  </style>
 </head>
 <body>
-    <h2>Готовая история</h2>
-    <img id="photo" alt="story">
-    <p id="caption" style="font-size: 18px; margin: 20px 0;"></p>
-    
-    <button onclick="shareStory()">Выложить в историю</button>
+<div class="card">
+  <h2>📸 Создать историю</h2>
+  <div id="photoWrap"></div>
+  <div class="users">
+    <strong>УПОМИНАНИЯ:</strong>
+    <div id="userList">—</div>
+  </div>
+  <button class="btn" onclick="shareStory()">🚀 Выложить в историю</button>
+  <div id="error" class="error"></div>
+</div>
 
-    <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
+<script>
+  const tg = window.Telegram.WebApp;
+  tg.ready();
+  tg.expand();
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const photoUrl = urlParams.get('photo');
-        const caption = urlParams.get('caption') || 'Моя история';
+  const params = new URLSearchParams(window.location.search);
+  const photoUrl = decodeURIComponent(params.get("photo") || "");
+  const caption  = decodeURIComponent(params.get("caption") || "");
 
-        if (photoUrl) document.getElementById('photo').src = photoUrl;
-        document.getElementById('caption').innerText = caption;
+  // Показываем фото или заглушку
+  const wrap = document.getElementById("photoWrap");
+  if (photoUrl.startsWith("http")) {
+    wrap.innerHTML = `<img src="${photoUrl}" class="preview-img" onerror="this.outerHTML='<div class=no-photo>Не удалось загрузить фото</div>'" />`;
+  } else {
+    wrap.innerHTML = `<div class="no-photo">Фото не передано</div>`;
+  }
 
-        function shareStory() {
-            tg.shareToStory(caption, {
-                media: photoUrl
-            });
-        }
-    </script>
+  // Показываем юзеров
+  const users = caption ? caption.split("%20").join(" ").split(" ").filter(u => u.startsWith("@")) : [];
+  document.getElementById("userList").innerHTML = users.length
+    ? users.map(u => `<div>${u}</div>`).join("")
+    : "—";
+
+  function shareStory() {
+    if (!photoUrl.startsWith("http")) {
+      document.getElementById("error").textContent = "❌ Нет фото для истории";
+      return;
+    }
+    tg.shareToStory(photoUrl, {
+      text: caption,
+      widget_link: { url: "https://t.me/твой_канал", name: "Канал" }
+    });
+  }
+</script>
 </body>
 </html>
