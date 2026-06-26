@@ -9,110 +9,91 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--tg-theme-bg-color, #1a1a2e);
-      color: var(--tg-theme-text-color, #fff);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      background: #1a1a2e;
+      color: #fff;
       padding: 20px;
-    }
-    .card {
-      background: var(--tg-theme-secondary-bg-color, #16213e);
-      border-radius: 16px;
-      padding: 24px;
-      width: 100%;
-      max-width: 400px;
-      text-align: center;
-    }
-    h2 { font-size: 20px; margin-bottom: 16px; }
-    .preview-img {
-      width: 100%;
-      max-height: 300px;
-      object-fit: cover;
-      border-radius: 12px;
-      margin-bottom: 16px;
-    }
-    .no-photo {
-      width: 100%;
-      height: 160px;
-      background: #2a2a4a;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       font-size: 14px;
-      color: #888;
-      margin-bottom: 16px;
     }
-    .users {
-      background: #0f3460;
-      border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 20px;
-      text-align: left;
-      font-size: 14px;
-      line-height: 1.8;
-    }
-    .users strong { display: block; margin-bottom: 6px; color: #aaa; font-size: 12px; }
+    .card { background: #16213e; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+    .label { color: #888; font-size: 11px; text-transform: uppercase; margin-bottom: 6px; }
+    .value { word-break: break-all; font-size: 13px; color: #7dd3fc; }
+    img { width: 100%; border-radius: 8px; margin-top: 8px; max-height: 200px; object-fit: cover; }
     .btn {
-      background: #e94560;
-      color: white;
-      border: none;
-      border-radius: 12px;
-      padding: 14px 28px;
-      font-size: 16px;
-      font-weight: 600;
-      width: 100%;
-      cursor: pointer;
+      background: #e94560; color: white; border: none;
+      border-radius: 12px; padding: 14px; font-size: 15px;
+      font-weight: 600; width: 100%; cursor: pointer; margin-top: 8px;
     }
-    .error { color: #ff6b6b; font-size: 13px; margin-top: 12px; }
+    .btn-debug {
+      background: #0f3460; color: white; border: none;
+      border-radius: 12px; padding: 10px; font-size: 13px;
+      width: 100%; cursor: pointer; margin-top: 8px;
+    }
+    .error { color: #ff6b6b; font-size: 12px; margin-top: 8px; text-align: center; }
   </style>
 </head>
 <body>
-<div class="card">
-  <h2>📸 Создать историю</h2>
-  <div id="photoWrap"></div>
-  <div class="users">
-    <strong>УПОМИНАНИЯ:</strong>
-    <div id="userList">—</div>
+  <div class="card">
+    <div class="label">Фото URL</div>
+    <div class="value" id="dbgPhoto">—</div>
+    <div id="imgWrap"></div>
   </div>
+  <div class="card">
+    <div class="label">Подпись (caption)</div>
+    <div class="value" id="dbgCaption">—</div>
+  </div>
+  <div class="card">
+    <div class="label">Версия Telegram Web App</div>
+    <div class="value" id="dbgVersion">—</div>
+  </div>
+
   <button class="btn" onclick="shareStory()">🚀 Выложить в историю</button>
+  <button class="btn-debug" onclick="copyDebug()">📋 Скопировать данные для отладки</button>
   <div id="error" class="error"></div>
-</div>
 
 <script>
   const tg = window.Telegram.WebApp;
   tg.ready();
   tg.expand();
 
+  // Читаем параметры — URLSearchParams уже делает decodeURIComponent
   const params = new URLSearchParams(window.location.search);
-  const photoUrl = decodeURIComponent(params.get("photo") || "");
-  const caption  = decodeURIComponent(params.get("caption") || "");
+  const photoUrl = params.get("photo") || "";
+  const caption  = params.get("caption") || "";
+  const version  = tg.version || "неизвестно";
 
-  // Показываем фото или заглушку
-  const wrap = document.getElementById("photoWrap");
-  if (photoUrl.startsWith("http")) {
-    wrap.innerHTML = `<img src="${photoUrl}" class="preview-img" onerror="this.outerHTML='<div class=no-photo>Не удалось загрузить фото</div>'" />`;
-  } else {
-    wrap.innerHTML = `<div class="no-photo">Фото не передано</div>`;
+  // Показываем отладочную инфо
+  document.getElementById("dbgPhoto").textContent   = photoUrl || "НЕТ";
+  document.getElementById("dbgCaption").textContent = caption  || "НЕТ";
+  document.getElementById("dbgVersion").textContent = version;
+
+  // Предпросмотр фото
+  if (photoUrl) {
+    document.getElementById("imgWrap").innerHTML =
+      `<img src="${photoUrl}" onerror="this.outerHTML='<div style=color:#f87>❌ Фото не загружается — проверь URL</div>'" />`;
   }
 
-  // Показываем юзеров
-  const users = caption ? caption.split("%20").join(" ").split(" ").filter(u => u.startsWith("@")) : [];
-  document.getElementById("userList").innerHTML = users.length
-    ? users.map(u => `<div>${u}</div>`).join("")
-    : "—";
-
   function shareStory() {
-    if (!photoUrl.startsWith("http")) {
-      document.getElementById("error").textContent = "❌ Нет фото для истории";
+    if (!photoUrl) {
+      document.getElementById("error").textContent = "❌ Нет URL фото";
       return;
     }
-    tg.shareToStory(photoUrl, {
-      text: caption,
-      widget_link: { url: "https://t.me/твой_канал", name: "Канал" }
+    try {
+      tg.shareToStory(photoUrl, {
+        text: caption,
+        widget_link: {
+          url: "https://t.me/твой_канал",
+          name: "Канал"
+        }
+      });
+    } catch(e) {
+      document.getElementById("error").textContent = "❌ Ошибка: " + e.message;
+    }
+  }
+
+  function copyDebug() {
+    const info = `URL страницы: ${window.location.href}\nФото: ${photoUrl}\nCaption: ${caption}\nTG версия: ${version}`;
+    navigator.clipboard.writeText(info).then(() => {
+      document.getElementById("error").textContent = "✅ Скопировано";
     });
   }
 </script>
